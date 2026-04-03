@@ -1,0 +1,56 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Build .app bundle
+        run: pyinstaller build/bloodhound.spec --distpath dist --workpath build/output --noconfirm
+
+      - name: Create ZIP
+        working-directory: dist
+        run: zip -r "PCAP-Bloodhound-macOS.zip" "PCAP Bloodhound.app"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: PCAP-Bloodhound-macOS
+          path: dist/PCAP-Bloodhound-macOS.zip
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Build .exe
+        run: pyinstaller build/bloodhound-win.spec --distpath dist --workpath build/output --noconfirm
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: PCAP-Bloodhound-Windows
+          path: dist/PCAP Bloodhound/
