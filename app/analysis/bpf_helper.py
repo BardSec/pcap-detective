@@ -21,7 +21,7 @@ def is_macos() -> bool:
 
 def bpf_is_readable() -> bool:
     """Check if the current user can read /dev/bpf0."""
-    return os.path.exists("/dev/bpf0") and os.access("/dev/bpf0", os.R_OK)
+    return os.path.exists("/dev/bpf0") and os.access("/dev/bpf0", os.R_OK | os.W_OK)
 
 
 def daemon_is_installed() -> bool:
@@ -69,7 +69,7 @@ fi
 
 # Set permissions on all BPF devices
 chgrp "$GROUP" /dev/bpf*
-chmod g+r /dev/bpf*
+chmod g+rw /dev/bpf*
 """
 
     # LaunchDaemon plist
@@ -97,8 +97,9 @@ cat > '{DAEMON_PLIST}' << 'PLISTEOF'
 chown root:wheel '{DAEMON_PLIST}'
 chmod 644 '{DAEMON_PLIST}'
 
-# Add user to access_bpf group
-dseditgroup -o edit -a '{username}' -t user '{GROUP_NAME}' 2>/dev/null || true
+# Ensure group exists then add user
+dseditgroup -o create -q '{GROUP_NAME}' 2>/dev/null || true
+dscl . -append /Groups/{GROUP_NAME} GroupMembership '{username}'
 
 # Load the daemon and run it now
 launchctl bootout system/{DAEMON_LABEL} 2>/dev/null || true
