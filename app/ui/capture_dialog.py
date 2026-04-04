@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from app.analysis.bpf_helper import install_bpf_helper, needs_setup
 from app.analysis.capture import CaptureWorker, check_capture_permissions, get_available_interfaces
 from app.ui.theme import COLORS
 
@@ -47,10 +48,34 @@ class CaptureDialog(QDialog):
         layout.setContentsMargins(20, 20, 20, 20)
 
         # Permission status
+        perm_widget = QWidget()
+        perm_layout = QVBoxLayout(perm_widget)
+        perm_layout.setContentsMargins(0, 0, 0, 0)
+        perm_layout.setSpacing(8)
+
         self.perm_label = QLabel("")
         self.perm_label.setWordWrap(True)
         self.perm_label.setStyleSheet(f"font-size: 12px; padding: 10px; border-radius: 6px;")
-        layout.addWidget(self.perm_label)
+        perm_layout.addWidget(self.perm_label)
+
+        self.fix_perm_btn = QPushButton("Fix Permissions")
+        self.fix_perm_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {COLORS['warning']};
+                color: #000;
+                border: none;
+                border-radius: 6px;
+                padding: 8px 16px;
+                font-weight: 600;
+                font-size: 13px;
+            }}
+            QPushButton:hover {{ background-color: #d97706; }}
+        """)
+        self.fix_perm_btn.clicked.connect(self._fix_permissions)
+        self.fix_perm_btn.setVisible(False)
+        perm_layout.addWidget(self.fix_perm_btn)
+
+        layout.addWidget(perm_widget)
 
         # Interface selection
         iface_group = QGroupBox("Network Interface")
@@ -205,8 +230,12 @@ class CaptureDialog(QDialog):
                 padding: 10px;
                 font-size: 12px;
             """)
+            self.fix_perm_btn.setVisible(False)
+            self.start_btn.setEnabled(True)
+            self.start_btn.setToolTip("")
 
             # Populate interfaces
+            self.iface_combo.clear()
             interfaces = get_available_interfaces()
             for name, desc in interfaces:
                 self.iface_combo.addItem(desc, name)
@@ -222,6 +251,25 @@ class CaptureDialog(QDialog):
             """)
             self.start_btn.setEnabled(False)
             self.start_btn.setToolTip("Capture prerequisites not met — see message above")
+
+            # Show fix button on macOS
+            if needs_setup():
+                self.fix_perm_btn.setVisible(True)
+
+    def _fix_permissions(self):
+        self.fix_perm_btn.setEnabled(False)
+        self.fix_perm_btn.setText("Installing...")
+
+        success, message = install_bpf_helper()
+
+        if success:
+            QMessageBox.information(self, "Permissions Fixed", message)
+            # Re-check — permissions may now be working
+            self._check_permissions()
+        else:
+            QMessageBox.warning(self, "Setup Issue", message)
+            self.fix_perm_btn.setEnabled(True)
+            self.fix_perm_btn.setText("Fix Permissions")
 
     def _start_capture(self):
         iface = self.iface_combo.currentData()
