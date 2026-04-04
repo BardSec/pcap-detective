@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
 
 from app.analysis.models import CaptureResult
 from app.analysis.runner import AnalysisWorker
+from app.ui.capture_dialog import CaptureDialog
 from app.ui.dashboard import Dashboard
 from app.ui.theme import COLORS
 
@@ -84,6 +85,23 @@ class MainWindow(QMainWindow):
         """)
         open_btn.clicked.connect(self._open_file)
         sidebar_layout.addWidget(open_btn)
+
+        # Live capture button
+        capture_btn = QPushButton("Live Capture")
+        capture_btn.setStyleSheet(f"""
+            QPushButton {{
+                margin: 0 12px 12px 12px;
+                padding: 10px;
+                background-color: transparent;
+                border: 1px solid {COLORS['border']};
+                border-radius: 6px;
+                font-weight: 600;
+                color: {COLORS['text']};
+            }}
+            QPushButton:hover {{ background-color: {COLORS['bg_card']}; }}
+        """)
+        capture_btn.clicked.connect(self._start_live_capture)
+        sidebar_layout.addWidget(capture_btn)
 
         # Progress bar
         self.progress_label = QLabel("")
@@ -225,6 +243,18 @@ class MainWindow(QMainWindow):
 
             item = QListWidgetItem(text)
             self.capture_list.addItem(item)
+
+    def _start_live_capture(self):
+        if self.current_worker and self.current_worker.isRunning():
+            QMessageBox.warning(
+                self, "Analysis Running",
+                "Please wait for the current analysis to complete."
+            )
+            return
+
+        dialog = CaptureDialog(self)
+        if dialog.exec() and dialog.result_path:
+            self._start_analysis(dialog.result_path)
 
     def _on_capture_selected(self, row: int):
         if 0 <= row < len(self.captures):
