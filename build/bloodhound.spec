@@ -62,7 +62,7 @@ if sys.platform == 'darwin':
     app = BUNDLE(
         coll,
         name='PCAP Detective.app',
-        icon='build/icon.icns',
+        icon='icon.icns',
         bundle_identifier='com.bardsec.pcap-detective',
         info_plist={
             'CFBundleName': 'PCAP Detective',
