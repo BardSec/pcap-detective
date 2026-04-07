@@ -46,22 +46,22 @@ jobs:
         run: |
           IDENTITY="Developer ID Application: BardSec ($APPLE_TEAM_ID)"
           # Sign all nested frameworks and dylibs first
-          find "dist/PCAP Bloodhound.app" -name "*.dylib" -o -name "*.so" -o -name "*.framework" | while read f; do
+          find "dist/PCAP Detective.app" -name "*.dylib" -o -name "*.so" -o -name "*.framework" | while read f; do
             codesign --force --options runtime --entitlements build/entitlements.plist --sign "$IDENTITY" "$f" 2>/dev/null || true
           done
           # Sign the main executable
-          codesign --force --options runtime --entitlements build/entitlements.plist --sign "$IDENTITY" "dist/PCAP Bloodhound.app/Contents/MacOS/PCAP Bloodhound"
+          codesign --force --options runtime --entitlements build/entitlements.plist --sign "$IDENTITY" "dist/PCAP Detective.app/Contents/MacOS/PCAP Detective"
           # Sign the app bundle
-          codesign --force --deep --options runtime --entitlements build/entitlements.plist --sign "$IDENTITY" "dist/PCAP Bloodhound.app"
+          codesign --force --deep --options runtime --entitlements build/entitlements.plist --sign "$IDENTITY" "dist/PCAP Detective.app"
           # Verify
-          codesign -dv --verbose "dist/PCAP Bloodhound.app"
+          codesign -dv --verbose "dist/PCAP Detective.app"
 
       - name: Create DMG
         run: |
-          hdiutil create -volname "PCAP Bloodhound" \
-            -srcfolder "dist/PCAP Bloodhound.app" \
+          hdiutil create -volname "PCAP Detective" \
+            -srcfolder "dist/PCAP Detective.app" \
             -ov -format UDZO \
-            "dist/PCAP-Bloodhound-macOS.dmg"
+            "dist/PCAP-Detective-macOS.dmg"
 
       - name: Notarize DMG
         if: env.APPLE_ID != ''
@@ -70,18 +70,18 @@ jobs:
           APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
-          xcrun notarytool submit "dist/PCAP-Bloodhound-macOS.dmg" \
+          xcrun notarytool submit "dist/PCAP-Detective-macOS.dmg" \
             --apple-id "$APPLE_ID" \
             --password "$APPLE_ID_PASSWORD" \
             --team-id "$APPLE_TEAM_ID" \
             --wait
-          xcrun stapler staple "dist/PCAP-Bloodhound-macOS.dmg"
+          xcrun stapler staple "dist/PCAP-Detective-macOS.dmg"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: PCAP-Bloodhound-macOS
-          path: dist/PCAP-Bloodhound-macOS.dmg
+          name: PCAP-Detective-macOS
+          path: dist/PCAP-Detective-macOS.dmg
 
   build-windows:
     runs-on: windows-latest
@@ -101,13 +101,13 @@ jobs:
 
       - name: Create ZIP
         shell: pwsh
-        run: Compress-Archive -Path "dist/PCAP Bloodhound/*" -DestinationPath "dist/PCAP-Bloodhound-Windows.zip"
+        run: Compress-Archive -Path "dist/PCAP Detective/*" -DestinationPath "dist/PCAP-Detective-Windows.zip"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: PCAP-Bloodhound-Windows
-          path: dist/PCAP-Bloodhound-Windows.zip
+          name: PCAP-Detective-Windows
+          path: dist/PCAP-Detective-Windows.zip
 
   release:
     needs: [build-macos, build-windows]
@@ -118,17 +118,17 @@ jobs:
       - name: Download macOS artifact
         uses: actions/download-artifact@v4
         with:
-          name: PCAP-Bloodhound-macOS
+          name: PCAP-Detective-macOS
 
       - name: Download Windows artifact
         uses: actions/download-artifact@v4
         with:
-          name: PCAP-Bloodhound-Windows
+          name: PCAP-Detective-Windows
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
           files: |
-            PCAP-Bloodhound-macOS.dmg
-            PCAP-Bloodhound-Windows.zip
+            PCAP-Detective-macOS.dmg
+            PCAP-Detective-Windows.zip

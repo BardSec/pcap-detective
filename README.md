@@ -1,4 +1,4 @@
-# PCAP Bloodhound
+# PCAP Detective
 
 A desktop threat-hunting tool that analyzes Wireshark packet captures with interactive visual dashboards. No command-line expertise required.
 
@@ -37,9 +37,9 @@ Capture packets directly from the application without needing Wireshark or tcpdu
 
 ## Download
 
-Download the latest release from [Releases](https://github.com/BardSec/pcap-bloodhound/releases).
+Download the latest release from [Releases](https://github.com/BardSec/pcap-detective/releases).
 
-- **macOS**: `PCAP Bloodhound.app`
+- **macOS**: `PCAP Detective.app`
 - **Windows**: Coming soon
 
 ## Building from Source

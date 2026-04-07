@@ -2,9 +2,11 @@
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
+    QDialog,
     QHBoxLayout,
     QHeaderView,
     QLabel,
+    QScrollArea,
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
@@ -57,8 +59,75 @@ def make_severity_badge(severity: str) -> QLabel:
     return badge
 
 
+class RowDetailDialog(QDialog):
+    """Modal dialog showing full details for a table row."""
+
+    def __init__(self, headers: list[str], values: list[str], parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Row Details")
+        self.setMinimumWidth(520)
+        self.setMaximumHeight(600)
+        self.setStyleSheet(f"""
+            QDialog {{
+                background-color: {COLORS['bg_dark']};
+                color: {COLORS['text']};
+            }}
+        """)
+
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QScrollArea.NoFrame)
+
+        container = QWidget()
+        layout = QVBoxLayout(container)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(16)
+
+        for header, value in zip(headers, values):
+            field = QWidget()
+            field.setStyleSheet(f"""
+                QWidget {{
+                    background-color: {COLORS['bg_card']};
+                    border: 1px solid {COLORS['border']};
+                    border-radius: 6px;
+                }}
+            """)
+            field_layout = QVBoxLayout(field)
+            field_layout.setContentsMargins(12, 10, 12, 10)
+            field_layout.setSpacing(4)
+
+            lbl_header = QLabel(header)
+            lbl_header.setStyleSheet(f"""
+                color: {COLORS['text_muted']};
+                font-size: 10px;
+                font-weight: 700;
+                text-transform: uppercase;
+                border: none;
+            """)
+            field_layout.addWidget(lbl_header)
+
+            lbl_value = QLabel(str(value))
+            lbl_value.setWordWrap(True)
+            lbl_value.setTextInteractionFlags(Qt.TextSelectableByMouse)
+            lbl_value.setStyleSheet(f"""
+                color: {COLORS['text']};
+                font-size: 13px;
+                border: none;
+            """)
+            field_layout.addWidget(lbl_value)
+
+            layout.addWidget(field)
+
+        layout.addStretch()
+        scroll.setWidget(container)
+        outer.addWidget(scroll)
+
+
 def make_table(headers: list[str], rows: list[list[str]], sortable: bool = True) -> QTableWidget:
-    """Create a styled data table."""
+    """Create a styled data table. Double-click a row to see full details."""
     table = QTableWidget(len(rows), len(headers))
     table.setHorizontalHeaderLabels(headers)
     table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
@@ -66,6 +135,7 @@ def make_table(headers: list[str], rows: list[list[str]], sortable: bool = True)
     table.setAlternatingRowColors(False)
     table.setSelectionBehavior(QTableWidget.SelectRows)
     table.setEditTriggers(QTableWidget.NoEditTriggers)
+    table.setToolTip("Double-click a row to view full details")
 
     if sortable:
         table.setSortingEnabled(True)
@@ -75,6 +145,15 @@ def make_table(headers: list[str], rows: list[list[str]], sortable: bool = True)
             item = QTableWidgetItem(str(val))
             item.setTextAlignment(Qt.AlignLeft | Qt.AlignVCenter)
             table.setItem(r, c, item)
+
+    def _on_double_click(item):
+        row_idx = item.row()
+        col_count = table.columnCount()
+        row_values = [table.item(row_idx, c).text() if table.item(row_idx, c) else "" for c in range(col_count)]
+        dlg = RowDetailDialog(headers, row_values, parent=table)
+        dlg.exec()
+
+    table.itemDoubleClicked.connect(_on_double_click)
 
     return table
 
@@ -100,6 +179,22 @@ def make_card_row(cards: list[QWidget]) -> QWidget:
     for card in cards:
         layout.addWidget(card)
     return row
+
+
+def make_description_banner(text: str) -> QWidget:
+    """Create an informational banner explaining what an analyzer does."""
+    banner = QLabel(text)
+    banner.setWordWrap(True)
+    banner.setStyleSheet(f"""
+        background-color: {COLORS['accent']}12;
+        color: {COLORS['text_muted']};
+        border: 1px solid {COLORS['accent']}25;
+        border-radius: 6px;
+        padding: 10px 14px;
+        font-size: 12px;
+        line-height: 1.4;
+    """)
+    return banner
 
 
 def make_empty_state(message: str) -> QWidget:

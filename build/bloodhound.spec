@@ -1,4 +1,4 @@
-# PyInstaller spec file for PCAP Bloodhound
+# PyInstaller spec file for PCAP Detective
 # Build with: pyinstaller build/bloodhound.spec
 
 import sys
@@ -39,7 +39,7 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,
-    name='PCAP Bloodhound',
+    name='PCAP Detective',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -55,22 +55,22 @@ coll = COLLECT(
     strip=False,
     upx=True,
     upx_exclude=[],
-    name='PCAP Bloodhound',
+    name='PCAP Detective',
 )
 
 if sys.platform == 'darwin':
     app = BUNDLE(
         coll,
-        name='PCAP Bloodhound.app',
+        name='PCAP Detective.app',
         icon='build/icon.icns',
-        bundle_identifier='com.bardsec.pcap-bloodhound',
+        bundle_identifier='com.bardsec.pcap-detective',
         info_plist={
-            'CFBundleName': 'PCAP Bloodhound',
-            'CFBundleDisplayName': 'PCAP Bloodhound',
-            'CFBundleShortVersionString': '1.4.0',
+            'CFBundleName': 'PCAP Detective',
+            'CFBundleDisplayName': 'PCAP Detective',
+            'CFBundleShortVersionString': '1.5.0',
             'NSHighResolutionCapable': True,
             'LSMinimumSystemVersion': '12.0',
-            'NSHumanReadableCopyright': 'Copyright © 2026 BardSec',
+            'NSHumanReadableCopyright': 'Copyright \u00a9 2026 BardSec',
             'LSApplicationCategoryType': 'public.app-category.utilities',
         },
     )

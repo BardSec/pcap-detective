@@ -3,7 +3,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QPen
 from PySide6.QtWidgets import QScrollArea, QVBoxLayout, QWidget
 
-from app.ui.panels.base import make_card, make_card_row, make_empty_state, make_section_header, make_table
+from app.ui.panels.base import make_card, make_card_row, make_description_banner, make_empty_state, make_section_header, make_table
 from app.ui.theme import COLORS
 
 
@@ -12,11 +12,14 @@ class TrafficTimelinePanel(QScrollArea):
         super().__init__()
         self.setWidgetResizable(True)
 
-    def load(self, data: dict):
+    def load(self, data: dict, description: str = ""):
         container = QWidget()
         layout = QVBoxLayout(container)
         layout.setContentsMargins(16, 16, 16, 16)
         layout.setSpacing(12)
+
+        if description:
+            layout.addWidget(make_description_banner(description))
 
         timeline = data.get("timeline", [])
         spikes = data.get("spikes", [])

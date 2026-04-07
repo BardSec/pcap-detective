@@ -11,7 +11,7 @@ logging.basicConfig(level=logging.WARNING, format="%(levelname)s: %(message)s")
 
 def main():
     app = QApplication(sys.argv)
-    app.setApplicationName("PCAP Bloodhound")
+    app.setApplicationName("PCAP Detective")
     app.setOrganizationName("BardSec")
     app.setStyleSheet(STYLESHEET)
 

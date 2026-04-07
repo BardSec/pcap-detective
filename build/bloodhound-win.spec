@@ -1,4 +1,4 @@
-# PyInstaller spec file for PCAP Bloodhound (Windows)
+# PyInstaller spec file for PCAP Detective (Windows)
 # Build with: pyinstaller build/bloodhound-win.spec
 
 block_cipher = None
@@ -36,7 +36,7 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,
-    name='PCAP Bloodhound',
+    name='PCAP Detective',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -52,5 +52,5 @@ coll = COLLECT(
     strip=False,
     upx=True,
     upx_exclude=[],
-    name='PCAP Bloodhound',
+    name='PCAP Detective',
 )

@@ -281,7 +281,7 @@ class CaptureDialog(QDialog):
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         self._capture_path = os.path.join(
             tempfile.gettempdir(),
-            f"bloodhound_capture_{timestamp}.pcap",
+            f"detective_capture_{timestamp}.pcap",
         )
 
         self._worker = CaptureWorker(

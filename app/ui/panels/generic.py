@@ -2,7 +2,7 @@
 
 from PySide6.QtWidgets import QScrollArea, QVBoxLayout, QWidget, QLabel
 
-from app.ui.panels.base import make_card, make_card_row, make_empty_state, make_section_header, make_table
+from app.ui.panels.base import make_card, make_card_row, make_description_banner, make_empty_state, make_section_header, make_table
 from app.ui.theme import COLORS
 
 
@@ -14,11 +14,14 @@ class GenericDictPanel(QScrollArea):
         self.setWidgetResizable(True)
         self._empty_message = empty_message
 
-    def load(self, data: dict):
+    def load(self, data: dict, description: str = ""):
         container = QWidget()
         layout = QVBoxLayout(container)
         layout.setContentsMargins(16, 16, 16, 16)
         layout.setSpacing(12)
+
+        if description:
+            layout.addWidget(make_description_banner(description))
 
         if not data:
             layout.addWidget(make_empty_state(self._empty_message))

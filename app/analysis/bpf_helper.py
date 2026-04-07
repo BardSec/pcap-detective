@@ -9,9 +9,9 @@ import subprocess
 
 logger = logging.getLogger(__name__)
 
-DAEMON_LABEL = "com.bardsec.pcapbloodhound.chmodbpf"
+DAEMON_LABEL = "com.bardsec.pcapdetective.chmodbpf"
 DAEMON_PLIST = f"/Library/LaunchDaemons/{DAEMON_LABEL}.plist"
-SCRIPT_PATH = "/usr/local/bin/pcap-bloodhound-chmodbpf"
+SCRIPT_PATH = "/usr/local/bin/pcap-detective-chmodbpf"
 GROUP_NAME = "access_bpf"
 
 
@@ -57,7 +57,7 @@ def install_bpf_helper() -> tuple[bool, str]:
 
     # Shell script that sets BPF permissions at boot
     script_content = f"""#!/bin/bash
-# PCAP Bloodhound — BPF permission helper
+# PCAP Detective — BPF permission helper
 # Sets /dev/bpf* readable by the {GROUP_NAME} group at boot.
 
 GROUP="{GROUP_NAME}"
@@ -77,7 +77,7 @@ chmod g+rw /dev/bpf*
         "Label": DAEMON_LABEL,
         "ProgramArguments": [SCRIPT_PATH],
         "RunAtLoad": True,
-        "StandardErrorPath": "/var/log/pcap-bloodhound-bpf.log",
+        "StandardErrorPath": "/var/log/pcap-detective-bpf.log",
     }
     plist_bytes = plistlib.dumps(plist_data, fmt=plistlib.FMT_XML)
 

@@ -27,50 +27,90 @@ from app.ui.panels.ntlm import NtlmPanel
 from app.ui.panels.tls_inspect import TlsInspectPanel
 from app.ui.panels.traffic_timeline import TrafficTimelinePanel
 from app.ui.panels.generic import GenericDictPanel
-from app.ui.panels.base import make_card, make_card_row, make_section_header
+from app.ui.panels.base import make_card, make_card_row, make_description_banner, make_section_header
 from app.ui.theme import COLORS
 
-# Each entry: (label, attr, PanelClass, is_list) for custom panels
-#             (label, attr, None, empty_message) for generic panels
+# Each entry: (label, attr, PanelClass, is_list, description) for custom panels
+#             (label, attr, None, empty_message, description) for generic panels
 ANALYZER_CATEGORIES = [
     {
         "name": "Threat Hunting",
         "analyzers": [
-            ("C2 Beaconing", "c2_beaconing", C2BeaconPanel, True),
-            ("DNS Tunneling", "dns_tunneling", DnsTunnelPanel, False),
-            ("NTLM Hashes", "ntlm", NtlmPanel, True),
-            ("Cleartext Creds", "cleartext_creds", CleartextPanel, True),
-            ("Exfiltration", "exfiltration", ExfilPanel, True),
+            ("C2 Beaconing", "c2_beaconing", C2BeaconPanel, True,
+             "Detects command-and-control beaconing by identifying outbound flows with highly regular timing intervals. "
+             "Flows with low coefficient of variation (CV < 0.15) in inter-arrival times suggest automated callbacks rather than human browsing."),
+            ("DNS Tunneling", "dns_tunneling", DnsTunnelPanel, False,
+             "Identifies data exfiltration through DNS by looking for queries with high-entropy subdomains, unusually long labels, "
+             "and suspicious record types (TXT, NULL, CNAME). Estimates the volume of data that could be tunneled."),
+            ("NTLM Hashes", "ntlm", NtlmPanel, True,
+             "Extracts NTLM authentication exchanges (Negotiate, Challenge, Authenticate) from network traffic. "
+             "Recovered hashes are formatted for offline cracking with Hashcat (mode 5600)."),
+            ("Cleartext Creds", "cleartext_creds", CleartextPanel, True,
+             "Finds credentials transmitted without encryption — HTTP Basic Auth, form POST passwords, FTP USER/PASS, "
+             "and SMTP AUTH LOGIN sequences. Any match means credentials are exposed on the wire."),
+            ("Exfiltration", "exfiltration", ExfilPanel, True,
+             "Flags outbound flows with large asymmetric transfers — significant data leaving the network with minimal inbound traffic. "
+             "Flows exceeding 1 MB outbound with a 5:1 ratio are suspicious; over 10 MB is critical."),
         ],
     },
     {
         "name": "Attack Path",
         "analyzers": [
-            ("Lateral Movement", "lateral_movement", None, "No lateral movement detected."),
-            ("DGA Detection", "dga_detection", None, "No DGA domains detected."),
-            ("Data Staging", "data_staging", None, "No data staging patterns detected."),
-            ("User-Agents", "suspicious_useragents", None, "No suspicious user agents detected."),
-            ("PS/WMI", "powershell_wmi", None, "No PowerShell/WMI network activity detected."),
+            ("Lateral Movement", "lateral_movement", None, "No lateral movement detected.",
+             "Monitors internal-to-internal connections on protocols commonly used for lateral movement: SMB (445), RDP (3389), "
+             "WinRM (5985/5986), SSH (22), and Telnet (23). A single host scanning 5+ targets on the same port triggers a critical alert."),
+            ("DGA Detection", "dga_detection", None, "No DGA domains detected.",
+             "Identifies algorithmically generated domains using entropy analysis, consonant ratios, digit density, and label length. "
+             "High-scoring domains suggest malware using a Domain Generation Algorithm to locate its C2 infrastructure."),
+            ("Data Staging", "data_staging", None, "No data staging patterns detected.",
+             "Detects a two-phase exfiltration pattern: large internal transfers (staging) followed by external uploads within a 10-minute window. "
+             "This mimics an attacker collecting data on a pivot host before sending it out."),
+            ("User-Agents", "suspicious_useragents", None, "No suspicious user agents detected.",
+             "Flags HTTP requests using non-browser User-Agent strings such as scripting libraries (python-requests, curl), "
+             "scanners (nmap, nikto), or known offensive tools (sqlmap, Cobalt Strike)."),
+            ("PS/WMI", "powershell_wmi", None, "No PowerShell/WMI network activity detected.",
+             "Detects PowerShell Remoting (WinRM on 5985/5986) and WMI/DCOM lateral movement (port 135) by matching "
+             "protocol signatures like WSMAN schemas, DCE/RPC headers, and IWbemServices interfaces in payloads."),
         ],
     },
     {
         "name": "K-12 Specific",
         "analyzers": [
-            ("Filter Bypass", "content_filter_bypass", None, "No content filter bypass attempts detected."),
-            ("CIPA Compliance", "cipa_compliance", None, "No web traffic to analyze for CIPA compliance."),
+            ("Filter Bypass", "content_filter_bypass", None, "No content filter bypass attempts detected.",
+             "Identifies attempts to circumvent content filters using VPN/proxy services (NordVPN, Psiphon, Ultrasurf), "
+             "public DNS resolvers (8.8.8.8, 1.1.1.1), or encrypted DNS (DoH/DoT) that bypasses district DNS filtering."),
+            ("CIPA Compliance", "cipa_compliance", None, "No web traffic to analyze for CIPA compliance.",
+             "Checks whether outbound web traffic passes through a recognized content filter (Lightspeed, GoGuardian, Securly, Cisco Umbrella, etc.). "
+             "Unfiltered HTTPS connections from student devices may indicate a CIPA compliance gap."),
         ],
     },
     {
         "name": "Network Visibility",
         "analyzers": [
-            ("Blocked Connections", "connection_failures", ConnectionFailuresPanel, False),
-            ("DNS Health", "dns_health", DnsHealthPanel, False),
-            ("TLS/SSL", "tls_inspection", TlsInspectPanel, False),
-            ("Traffic Timeline", "traffic_timeline", TrafficTimelinePanel, False),
-            ("VLAN Traffic", "vlan_traffic", None, "No VLAN-tagged traffic detected."),
-            ("DHCP", "dhcp", None, "No DHCP traffic detected."),
-            ("Broadcast/Multicast", "broadcast_storms", None, "No broadcast storm indicators."),
-            ("Services", "services", None, "No network services detected."),
+            ("Blocked Connections", "connection_failures", ConnectionFailuresPanel, False,
+             "Aggregates evidence of network filtering: ICMP unreachable messages (especially firewall-prohibited codes), "
+             "TCP RST floods to specific destinations, and SYN packets that received no response (silently dropped)."),
+            ("DNS Health", "dns_health", DnsHealthPanel, False,
+             "Monitors DNS response quality — NXDOMAIN (missing records), SERVFAIL (resolver errors), REFUSED (policy blocks), "
+             "timeouts (no response), and slow queries (>500ms). Helps diagnose DNS infrastructure issues."),
+            ("TLS/SSL", "tls_inspection", TlsInspectPanel, False,
+             "Analyzes TLS handshakes to detect SSL inspection appliances, certificate mismatches between SNI and certificate CN, "
+             "and TLS alert errors (bad certificate, unknown CA). Identifies which filter product is performing HTTPS inspection."),
+            ("Traffic Timeline", "traffic_timeline", TrafficTimelinePanel, False,
+             "Visualizes traffic volume over time, detecting bursts (>3x average packets/sec) and gaps (periods of silence). "
+             "Also ranks top conversations and endpoints by total bytes transferred."),
+            ("VLAN Traffic", "vlan_traffic", None, "No VLAN-tagged traffic detected.",
+             "Maps VLAN-tagged (802.1Q) traffic to build a per-VLAN host inventory and identifies cross-VLAN communication flows "
+             "that may indicate misconfigured trunking or unauthorized inter-VLAN routing."),
+            ("DHCP", "dhcp", None, "No DHCP traffic detected.",
+             "Tracks DHCP lease activity (Discover, Offer, Request, ACK) and flags anomalies like multiple DHCP servers "
+             "(possible rogue server), declined leases, or NAK responses indicating address conflicts."),
+            ("Broadcast/Multicast", "broadcast_storms", None, "No broadcast storm indicators.",
+             "Detects broadcast storms by measuring broadcast/multicast packet rates. A single source exceeding 100 packets/sec "
+             "or broadcast traffic comprising over 30% of total traffic triggers an alert."),
+            ("Services", "services", None, "No network services detected.",
+             "Inventories network services by observing TCP SYN-ACK responses and UDP replies from well-known ports "
+             "(SSH, HTTP, SMB, LDAP, RDP, MySQL, Redis, MongoDB, etc.) to map what is running on the network."),
         ],
     },
 ]
@@ -260,19 +300,20 @@ class Dashboard(QWidget):
             for analyzer in category["analyzers"]:
                 label, attr, panel_class_or_none = analyzer[0], analyzer[1], analyzer[2]
                 fourth = analyzer[3]
+                description = analyzer[4] if len(analyzer) > 4 else ""
 
                 if panel_class_or_none is not None:
                     # Custom panel
                     panel = panel_class_or_none()
                     is_list = fourth
                     data = getattr(result, attr, [] if is_list else {})
-                    panel.load(data)
+                    panel.load(data, description=description)
                 else:
                     # Generic panel
                     empty_msg = fourth
                     panel = GenericDictPanel(empty_message=empty_msg)
                     data = getattr(result, attr, {})
-                    panel.load(data)
+                    panel.load(data, description=description)
 
                 self.panel_stack.addWidget(panel)
                 stack_idx += 1

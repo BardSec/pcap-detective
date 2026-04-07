@@ -29,7 +29,7 @@ from app.ui.theme import COLORS
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("PCAP Bloodhound")
+        self.setWindowTitle("PCAP Detective")
         self.setMinimumSize(1280, 800)
         self.resize(1440, 900)
 
@@ -61,7 +61,7 @@ class MainWindow(QMainWindow):
         logo_layout = QVBoxLayout(logo_container)
         logo_layout.setContentsMargins(16, 16, 16, 16)
 
-        logo = QLabel("PCAP Bloodhound")
+        logo = QLabel("PCAP Detective")
         logo.setStyleSheet("font-size: 16px; font-weight: 700; color: white;")
         logo_layout.addWidget(logo)
 

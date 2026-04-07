@@ -1,6 +1,6 @@
 from PySide6.QtWidgets import QScrollArea, QVBoxLayout, QWidget
 
-from app.ui.panels.base import make_card, make_card_row, make_empty_state, make_section_header, make_table
+from app.ui.panels.base import make_card, make_card_row, make_description_banner, make_empty_state, make_section_header, make_table
 from app.ui.theme import COLORS
 
 
@@ -9,11 +9,14 @@ class CleartextPanel(QScrollArea):
         super().__init__()
         self.setWidgetResizable(True)
 
-    def load(self, data: list[dict]):
+    def load(self, data: list[dict], description: str = ""):
         container = QWidget()
         layout = QVBoxLayout(container)
         layout.setContentsMargins(16, 16, 16, 16)
         layout.setSpacing(12)
+
+        if description:
+            layout.addWidget(make_description_banner(description))
 
         if not data:
             layout.addWidget(make_empty_state("No cleartext credentials detected."))
@@ -36,7 +39,7 @@ class CleartextPanel(QScrollArea):
                 d.get("protocol", ""),
                 d.get("type", ""),
                 d.get("username", ""),
-                d.get("password_masked", ""),
+                d.get("password_raw", d.get("password_masked", "")),
                 d.get("src_ip", ""),
                 f"{d.get('dst_ip', '')}:{d.get('dst_port', '')}",
                 d.get("severity", ""),
