@@ -7,13 +7,15 @@ and a timeline of related events.
 
 from __future__ import annotations
 
-from PySide6.QtCore import QSize, Qt, Signal
+from PySide6.QtCore import QSize, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QCursor, QFont
 from PySide6.QtWidgets import (
+    QApplication,
     QHBoxLayout,
     QLabel,
     QListWidget,
     QListWidgetItem,
+    QPushButton,
     QScrollArea,
     QSplitter,
     QVBoxLayout,
@@ -282,6 +284,78 @@ def _make_timeline(events: list[TimelineEvent]) -> QWidget:
     return container
 
 
+# ─── AI Prompt Builder ────────────────────────────────────────────────────────
+
+def _build_ai_prompt(thread: InvestigationThread) -> str:
+    """Package an investigation thread into a structured prompt for AI analysis."""
+    lines = [
+        "I'm investigating a network security finding from a packet capture analysis tool. "
+        "Please review the evidence below and provide:",
+        "",
+        "1. Your assessment of whether this is likely malicious, suspicious, or benign",
+        "2. What additional investigation steps I should take",
+        "3. What I should look for to confirm or rule out the threat",
+        "4. Recommended remediation if this turns out to be real",
+        "",
+        "---",
+        "",
+        f"Entity: {thread.entity} ({_entity_type_label(thread.entity_type)})",
+        f"Risk Score: {thread.risk_score}/100",
+        f"Summary: {thread.summary}",
+    ]
+
+    if thread.related_entities:
+        lines.append(f"Related Entities: {', '.join(thread.related_entities[:15])}")
+
+    for finding in thread.findings:
+        lines.append("")
+        lines.append(f"--- Finding: {finding.title} ---")
+        lines.append(f"Confidence: {finding.confidence}%  |  Severity: {finding.severity}")
+        lines.append(f"Description: {finding.description}")
+
+        lines.append("")
+        lines.append("Supporting indicators:")
+        for ind in finding.indicators:
+            status = "[MET]" if ind.met else "[NOT MET]"
+            lines.append(f"  {status} {ind.description}")
+            if ind.detail:
+                lines.append(f"         {ind.detail}")
+
+        if finding.alternative_explanations:
+            lines.append("")
+            lines.append("Possible benign explanations:")
+            for alt in finding.alternative_explanations:
+                lines.append(f"  - {alt}")
+
+    if thread.timeline:
+        lines.append("")
+        lines.append("--- Timeline ---")
+        for event in thread.timeline[:30]:
+            lines.append(f"  [{event.severity}] {event.event_type}: {event.description}")
+
+    if thread.metadata:
+        meta = thread.metadata
+        if meta.get("packets") or meta.get("bytes"):
+            lines.append("")
+            lines.append("--- Host Metadata ---")
+            for key in ("packets", "bytes", "bytes_outbound", "bytes_inbound",
+                        "external_destinations", "internal_peers", "dns_queries",
+                        "unique_domains", "protocols"):
+                if key in meta and meta[key]:
+                    lines.append(f"  {key.replace('_', ' ').title()}: {meta[key]}")
+
+    lines.append("")
+    lines.append("---")
+    lines.append("")
+    lines.append(
+        "Please analyze this investigation thread. Consider the confidence scores "
+        "and indicator evidence when forming your assessment. Be specific about "
+        "what I should check next."
+    )
+
+    return "\n".join(lines)
+
+
 # ─── Thread Detail ────────────────────────────────────────────────────────────
 
 def _make_thread_detail(thread: InvestigationThread, on_entity_click=None) -> QWidget:
@@ -295,12 +369,15 @@ def _make_thread_detail(thread: InvestigationThread, on_entity_click=None) -> QW
     layout.setContentsMargins(16, 12, 16, 16)
     layout.setSpacing(12)
 
-    # Entity header
-    entity_header = QHBoxLayout()
-
+    # Entity header — top line: name, second line: type + risk + stats
     entity_label = QLabel(thread.entity)
     entity_label.setStyleSheet(f"color: {COLORS['text']}; font-size: 18px; font-weight: 700;")
-    entity_header.addWidget(entity_label)
+    layout.addWidget(entity_label)
+
+    # Badges row: type, risk, finding count, timeline count
+    badges_row = QHBoxLayout()
+    badges_row.setContentsMargins(0, 0, 0, 0)
+    badges_row.setSpacing(8)
 
     type_label = QLabel(_entity_type_label(thread.entity_type))
     type_label.setStyleSheet(f"""
@@ -311,26 +388,46 @@ def _make_thread_detail(thread: InvestigationThread, on_entity_click=None) -> QW
         border-radius: 4px;
         padding: 2px 8px;
     """)
-    entity_header.addWidget(type_label)
+    badges_row.addWidget(type_label)
 
-    entity_header.addStretch()
-
-    # Risk score badge
     risk_color = _risk_color(thread.risk_score)
     risk_badge = QLabel(f"Risk: {thread.risk_score}")
-    risk_badge.setAlignment(Qt.AlignCenter)
     risk_badge.setStyleSheet(f"""
         background-color: {risk_color}22;
         color: {risk_color};
         border: 1px solid {risk_color}44;
         border-radius: 4px;
-        padding: 4px 12px;
-        font-size: 12px;
+        padding: 2px 8px;
+        font-size: 11px;
         font-weight: 700;
     """)
-    entity_header.addWidget(risk_badge)
+    badges_row.addWidget(risk_badge)
 
-    layout.addLayout(entity_header)
+    findings_badge = QLabel(f"{len(thread.findings)} finding{'s' if len(thread.findings) != 1 else ''}")
+    findings_badge.setStyleSheet(f"""
+        color: {COLORS['text_muted']};
+        font-size: 11px;
+        background-color: {COLORS['bg_input']};
+        border: 1px solid {COLORS['border']};
+        border-radius: 4px;
+        padding: 2px 8px;
+    """)
+    badges_row.addWidget(findings_badge)
+
+    if thread.timeline:
+        timeline_badge = QLabel(f"{len(thread.timeline)} events")
+        timeline_badge.setStyleSheet(f"""
+            color: {COLORS['text_muted']};
+            font-size: 11px;
+            background-color: {COLORS['bg_input']};
+            border: 1px solid {COLORS['border']};
+            border-radius: 4px;
+            padding: 2px 8px;
+        """)
+        badges_row.addWidget(timeline_badge)
+
+    badges_row.addStretch()
+    layout.addLayout(badges_row)
 
     # Summary
     summary = QLabel(thread.summary)
@@ -346,17 +443,65 @@ def _make_thread_detail(thread: InvestigationThread, on_entity_click=None) -> QW
     """)
     layout.addWidget(summary)
 
-    # Stats cards
-    cards = [
-        make_card("Findings", str(len(thread.findings)), _risk_color(thread.risk_score)),
-        make_card("Timeline Events", str(len(thread.timeline)), COLORS["accent"]),
-        make_card("Related Entities", str(len(thread.related_entities)), COLORS["info"]),
-    ]
-    if thread.metadata:
-        packets = thread.metadata.get("packets", 0)
-        if packets:
-            cards.append(make_card("Packets", f"{packets:,}", COLORS["text_muted"]))
-    layout.addWidget(make_card_row(cards))
+    # Copy for AI analysis button
+    ai_btn = QPushButton("Copy for AI Analysis")
+    ai_btn.setCursor(QCursor(Qt.PointingHandCursor))
+    ai_btn.setStyleSheet(f"""
+        QPushButton {{
+            background-color: transparent;
+            border: 1px solid {COLORS['accent']}55;
+            border-radius: 6px;
+            color: {COLORS['accent']};
+            font-size: 12px;
+            font-weight: 600;
+            padding: 8px 16px;
+        }}
+        QPushButton:hover {{
+            background-color: {COLORS['accent']}15;
+            border-color: {COLORS['accent']};
+        }}
+    """)
+
+    def _copy_prompt():
+        prompt = _build_ai_prompt(thread)
+        QApplication.clipboard().setText(prompt)
+        ai_btn.setText("Copied!")
+        ai_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {COLORS['success']}22;
+                border: 1px solid {COLORS['success']}55;
+                border-radius: 6px;
+                color: {COLORS['success']};
+                font-size: 12px;
+                font-weight: 600;
+                padding: 8px 16px;
+            }}
+        """)
+        QTimer.singleShot(2000, lambda: (
+            ai_btn.setText("Copy for AI Analysis"),
+            ai_btn.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: transparent;
+                    border: 1px solid {COLORS['accent']}55;
+                    border-radius: 6px;
+                    color: {COLORS['accent']};
+                    font-size: 12px;
+                    font-weight: 600;
+                    padding: 8px 16px;
+                }}
+                QPushButton:hover {{
+                    background-color: {COLORS['accent']}15;
+                    border-color: {COLORS['accent']};
+                }}
+            """),
+        ))
+
+    ai_btn.clicked.connect(_copy_prompt)
+    layout.addWidget(ai_btn)
+
+    ai_hint = QLabel("Paste into ChatGPT, Claude, or any AI assistant for guided analysis")
+    ai_hint.setStyleSheet(f"color: {COLORS['text_muted']}; font-size: 11px;")
+    layout.addWidget(ai_hint)
 
     # Related entities (clickable)
     if thread.related_entities:
